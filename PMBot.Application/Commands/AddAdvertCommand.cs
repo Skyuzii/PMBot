@@ -4,8 +4,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using PMBot.Application.Constants;
+using PMBot.Application.Exceptions;
 using PMBot.Application.Services;
 using PMBot.Core;
+using PMBot.Core.Entities;
 using PMBot.Grabbers.Interfaces;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -37,8 +39,8 @@ namespace PMBot.Application.Commands
             }
             else
             {
-                var grabber = _grabbers.FirstOrDefault(x => msg.Text.Contains(x.Url))
-                    ?? throw new Exception("Пожалуйста, введите коректную ссылку");
+                var grabber = _grabbers.FirstOrDefault(x => url.Contains(x.Url)) 
+                              ?? throw new TelegramException("Пожалуйста, введите коректную ссылку", msg.Chat.Id);
                 
                 var advert = await grabber.ParseAdvert(msg.Text);
                 advert.UserId = _chatService.Chats[msg.Chat.Id].Id;
@@ -50,8 +52,17 @@ namespace PMBot.Application.Commands
                 await _context.Adverts.AddAsync(advert);
                 await _context.SaveChangesAsync();
 
-                var message = $"Название: {advert.Name}\nМинимальная цена: {advert.LowPrice}\nДобавлено: {advert.CreateDate}";
+                var priceHistory = new AdvertPriceHistory
+                {
+                    AdvertId = advert.Id,
+                    Price = advert.LowPrice, 
+                    ChangeDate = advert.LastCheckDate
+                };
 
+                await _context.AdvertPriceHistories.AddAsync(priceHistory);
+                await _context.SaveChangesAsync();
+
+                var message = $"Название: {advert.Name}\nМинимальная цена: {advert.LowPrice}\nДобавлено: {advert.CreateDate}";
                 await _client.SendTextMessageAsync(msg.Chat.Id, message, replyMarkup: GetDefaultReplyButtons());
             }
         }

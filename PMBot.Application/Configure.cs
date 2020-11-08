@@ -17,16 +17,10 @@ namespace PMBot.Application
             services.AddDbContext<ApplicationContext>(options => 
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"), x => x.MigrationsAssembly("PMBot.Core")));
             
-            services.AddTelegramBot(configuration);
+            services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(configuration["TelegramToken"]));
             services.AddServices();
             services.AddCommands();
             services.AddGrabbers();
-        }
-
-        private static void AddTelegramBot(this IServiceCollection services, IConfiguration configuration)
-        {
-            var client = new TelegramBotClient(configuration["TelegramToken"]);
-            services.AddSingleton<ITelegramBotClient>(client);
         }
 
         private static void AddServices(this IServiceCollection services)
